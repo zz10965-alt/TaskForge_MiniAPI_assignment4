@@ -13,6 +13,7 @@ public record TaskResponse(
         Task.Priority priority,
         Long userId,
         LocalDate dueDate,
+        String contactEmail,
         Boolean aiAssisted,
         // Assignment 3 Part 1 新增
         Instant createdAt,
@@ -28,6 +29,7 @@ public record TaskResponse(
                 task.getPriority(),
                 task.getUserId(),
                 task.getDueDate(),
+                task.getContactEmail(),
                 task.getAiAssisted(),
                 task.getCreatedAt(),
                 task.getUpdatedAt()

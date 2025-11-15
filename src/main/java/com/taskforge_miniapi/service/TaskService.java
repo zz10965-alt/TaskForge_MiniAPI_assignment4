@@ -7,6 +7,7 @@ import com.taskforge_miniapi.dto.TaskUpdateRequest;
 import com.taskforge_miniapi.model.Task;
 import com.taskforge_miniapi.repository.TaskRepository;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -24,6 +25,7 @@ import java.util.NoSuchElementException;
  */
 @Service
 @RequiredArgsConstructor
+@Slf4j //添加此注解，Lombok 会自动生成名为 log 的日志对象
 public class TaskService {
 
     private final TaskRepository taskRepository;
@@ -38,6 +40,7 @@ public class TaskService {
                 t.getPriority(),
                 t.getUserId(),
                 t.getDueDate(),
+                t.getContactEmail(),
                 t.getAiAssisted(),
                 t.getCreatedAt(),
                 t.getUpdatedAt()
@@ -52,20 +55,31 @@ public class TaskService {
      */
     @Transactional
     public TaskResponse createTask(TaskCreateRequest request, Long userId) {
+        log.info("User {} is attempting to create a new task with title: {}",userId,request.title());
         // Use Builder Pattern to create Task entity
-        Task task = Task.builder()
-                .userId(userId) // Long userId
-                .title(request.title())
-                .description(request.description())
-                .status(Task.Status.TODO)
-                .priority(request.priority() == null ? Task.Priority.MEDIUM : request.priority())
-                .dueDate(request.dueDate()) // LocalDate type safety
-                .aiAssisted(false)
-                .build();
+        try {
+            Task task = Task.builder()
+                    .userId(userId) // Long userId
+                    .title(request.title())
+                    .description(request.description())
+                    .status(Task.Status.TODO)
+                    .priority(request.priority() == null ? Task.Priority.MEDIUM : request.priority())
+                    .dueDate(request.dueDate()) // LocalDate type safety
+                    .aiAssisted(false)
+                    .contactEmail(request.contactEmail())
+                    .build();
 
-        Task savedTask = taskRepository.save(task);
-        return toResp(savedTask);
+            Task savedTask = taskRepository.save(task);
+            //info log:记录操作成功
+            log.info("Task successfully created and saved with ID: {}", savedTask.getId());
+            return toResp(savedTask);
+        }catch(Exception e) {
+            log.error("CRITICAL ERROR: Failed to save task for user {}. Reason: {}", userId, e.getMessage(), e);
+            throw new RuntimeException("Task creation failed due to system error.", e);
+        }
     }
+
+
 
     /**
      * Retrieves the task list with pagination and optional status filter.
@@ -123,7 +137,12 @@ public class TaskService {
     @Transactional(readOnly = true)
     public TaskResponse getTaskById(Long id, Long userId) {
         Task task = taskRepository.findByIdAndUserId(id, userId) // Checks ID and userId (Long)
-                .orElseThrow(() -> new NoSuchElementException("Task not found with id: " + id));
+                .orElseThrow(() ->{
+                    log.warn("Access Denied or Not Found: User {} attempted to retrieve task {}.", userId, id);
+                       return new NoSuchElementException("Task not found with id: " + id);
+                });
+//info log放这里，记录查询成功
+        log.info("User {} successfully retrieved task{}.",userId,id);
         return toResp(task);
     }
 
@@ -138,7 +157,12 @@ public class TaskService {
     @Transactional
     public TaskResponse updateTask(Long id, TaskUpdateRequest request, Long userId) {
         Task task = taskRepository.findByIdAndUserId(id, userId)
-                .orElseThrow(() -> new NoSuchElementException("Task not found with id: " + id));
+                .orElseThrow(() ->{
+                    //warn本身要异常的时候才记录，但是如果放在lambda外面的话他会找到任务也执行
+                    //本身就是optional有值的话他是不会执行这个lambda的，但是空的话就会执行，所以warn放里面
+                    log.warn("Update failed: Task ID {} not found or not owned by user {}.", id, userId);
+                    return new NoSuchElementException("Task not found with id: " + id);
+                });
 
         // Update fields (only non-null fields)
         if (StringUtils.hasText(request.title())) {
@@ -157,6 +181,8 @@ public class TaskService {
             task.setDueDate(request.dueDate());
         }
 
+        //更新的时候要被记录，info
+        log.info("Task {} successfully updated by user{}",id, userId);
         Task updatedTask = taskRepository.save(task);
         return toResp(updatedTask);
     }
@@ -170,9 +196,15 @@ public class TaskService {
     @Transactional
     public void deleteTask(Long id, Long userId) {
         Task task = taskRepository.findByIdAndUserId(id, userId)
-                .orElseThrow(() -> new NoSuchElementException("Task not found with id: " + id));
+                .orElseThrow(() -> {
+                    //warn在这里
+                    log.warn("Delete Failed: Task ID {} not found or not owned by user {}.",id, userId);
+                    return new NoSuchElementException("Task not found with id: " + id);
+                });
 
         taskRepository.delete(task);
+        //info 放在这里记录删除成功
+        log.info("Task {} successfully deleted by user {}.",id,userId);
     }
 }
 

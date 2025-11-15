@@ -1,8 +1,7 @@
 package com.taskforge_miniapi.dto;
 
 import com.taskforge_miniapi.model.Task;
-import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.Size;
+import jakarta.validation.constraints.*;
 
 import java.time.LocalDate;
 
@@ -17,9 +16,15 @@ public record TaskCreateRequest(
 
         // description max 10000
         @Size(max = 10000, message = "Description cannot exceed 10000 characters")
+        @NotNull(message="Description cannot be null")
         String description,
 
         Task.Priority priority,
 
-        LocalDate dueDate
+        @NotNull(message="The deadline cannot be null")
+        @Future(message="The deadline must be a  future date")
+        LocalDate dueDate,
+
+        @Email(message="Email must be effective")
+        String contactEmail
 ) {}

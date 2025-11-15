@@ -49,6 +49,8 @@ public class Task {
 
     private Boolean aiAssisted = false;
 
+    private String contactEmail;
+
     // --- Assignment 3 Part 1: Timestamp新增
     @CreationTimestamp
     private Instant createdAt;

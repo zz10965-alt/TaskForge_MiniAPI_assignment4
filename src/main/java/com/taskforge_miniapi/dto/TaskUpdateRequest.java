@@ -1,6 +1,8 @@
 package com.taskforge_miniapi.dto;
 
 import com.taskforge_miniapi.model.Task;
+import com.taskforge_miniapi.validation.ValidPriority;
+import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.Size;
 
 import java.time.LocalDate;
@@ -15,8 +17,11 @@ public record TaskUpdateRequest(
         @Size(max = 10000, message = "Description cannot exceed 10000 characters")
         String description,
 
-        Task.Status status,
+        @Email(message="Email must be effective")
+        String contactEmail,
 
+        Task.Status status,
+        @ValidPriority
         Task.Priority priority,
 
         LocalDate dueDate
